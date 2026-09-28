@@ -1,0 +1,36 @@
+@import "tailwindcss";
+
+@layer base {
+  * {
+    box-sizing: border-box;
+  }
+}
+
+/* Custom Print Formatting */
+@media print {
+  @page {
+    margin: 0.4cm;
+  }
+
+  body {
+    background: white !important;
+    color: black !important;
+    font-size: 11pt !important;
+  }
+
+  .print-pos-80mm {
+    width: 76mm !important;
+    max-width: 76mm !important;
+    margin: 0 auto !important;
+    font-size: 9pt !important;
+    line-height: 1.25 !important;
+    padding: 0 !important;
+  }
+
+  .print-a4 {
+    width: 100% !important;
+    max-width: 210mm !important;
+    margin: 0 auto !important;
+    padding: 10mm !important;
+  }
+}

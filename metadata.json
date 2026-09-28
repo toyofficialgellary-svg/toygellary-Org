@@ -1,0 +1,6 @@
+{
+  "name": "Toy Gallery POS",
+  "description": "Toy Gallery Business Management System with multi-shop inventory, carton-pcs units, bilingual invoice and running due logic.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
