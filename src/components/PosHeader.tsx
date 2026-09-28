@@ -9,9 +9,19 @@ import {
   RotateCw,
   Sparkles,
   LayoutDashboard,
-  Smartphone
+  Smartphone,
+  Cloud,
+  Key,
+  CheckCircle,
+  X
 } from 'lucide-react';
 import { ApkInstallModal } from './ApkInstallModal';
+import { 
+  getSupabaseAnonKey, 
+  saveSupabaseAnonKey, 
+  syncToSupabase, 
+  SUPABASE_URL 
+} from '../db/supabaseSync';
 
 interface PosHeaderProps {
   activeShop: Shop | undefined;
@@ -42,6 +52,11 @@ export const PosHeader: React.FC<PosHeaderProps> = ({
   const [isSyncing, setIsSyncing] = useState(false);
   const [showRoleDropdown, setShowRoleDropdown] = useState(false);
   const [showApkModal, setShowApkModal] = useState(false);
+  const [showSupabaseModal, setShowSupabaseModal] = useState(false);
+  const [supabaseKey, setSupabaseKey] = useState<string>(() => getSupabaseAnonKey());
+  const [isSupabaseSyncing, setIsSupabaseSyncing] = useState(false);
+  const [supabaseStatusMsg, setSupabaseStatusMsg] = useState<string>('');
+  const [lastSyncTime, setLastSyncTime] = useState<string>(() => localStorage.getItem('supabase_last_sync') || '');
 
   useEffect(() => {
     const handleOnline = () => setIsOnline(true);
@@ -86,6 +101,21 @@ export const PosHeader: React.FC<PosHeaderProps> = ({
 
         {/* Status, Shop & Language Controls */}
         <div className="flex items-center gap-2 md:gap-3 flex-wrap">
+          {/* Supabase Cloud Connection & Sync Button */}
+          <button
+            onClick={() => setShowSupabaseModal(true)}
+            title={supabaseKey ? "Supabase Cloud Connected (Click to view or Sync)" : "Supabase Offline / Key Not Set (Click to enter Anon Key)"}
+            className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-bold border transition ${
+              supabaseKey.trim().length > 10
+                ? 'bg-emerald-950/80 text-emerald-300 border-emerald-700 hover:bg-emerald-900'
+                : 'bg-rose-950/80 text-rose-300 border-rose-700 hover:bg-rose-900 animate-pulse'
+            }`}
+          >
+            <div className={`w-2 h-2 rounded-full ${supabaseKey.trim().length > 10 ? 'bg-emerald-400' : 'bg-rose-500'}`} />
+            <Cloud className="w-3.5 h-3.5" />
+            <span className="hidden lg:inline">{supabaseKey.trim().length > 10 ? 'Supabase Connected' : 'Supabase Key'}</span>
+          </button>
+
           {/* APK Install Button */}
           <button
             onClick={() => setShowApkModal(true)}
@@ -244,6 +274,144 @@ export const PosHeader: React.FC<PosHeaderProps> = ({
         isOpen={showApkModal}
         onClose={() => setShowApkModal(false)}
       />
+
+      {/* Supabase Connection & Key Modal */}
+      {showSupabaseModal && (
+        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-slate-900 border border-slate-700 w-full max-w-lg rounded-2xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+            {/* Modal Header */}
+            <div className="bg-slate-800/80 px-5 py-4 border-b border-slate-700 flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center">
+                  <Cloud className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                    <span>Supabase Online Backup & Sync</span>
+                    <span className={`w-2 h-2 rounded-full ${supabaseKey.trim().length > 10 ? 'bg-emerald-400' : 'bg-rose-500'}`} />
+                  </h3>
+                  <p className="text-[11px] text-slate-400">Cloud database persistence & real-time sync</p>
+                </div>
+              </div>
+              <button
+                onClick={() => {
+                  setShowSupabaseModal(false);
+                  setSupabaseStatusMsg('');
+                }}
+                className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-700 transition"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-5 space-y-4">
+              {/* Target Supabase URL */}
+              <div>
+                <label className="block text-[11px] font-bold text-slate-300 uppercase tracking-wider mb-1">
+                  Supabase Project URL
+                </label>
+                <div className="flex items-center gap-2 bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-300 font-mono">
+                  <span className="text-emerald-400 select-all font-bold">{SUPABASE_URL}</span>
+                </div>
+              </div>
+
+              {/* Anon Key Input */}
+              <div>
+                <label className="block text-[11px] font-bold text-slate-300 uppercase tracking-wider mb-1">
+                  Supabase Anon Key (API Public Key)
+                </label>
+                <div className="relative">
+                  <input
+                    type="password"
+                    value={supabaseKey}
+                    onChange={(e) => {
+                      setSupabaseKey(e.target.value);
+                      setSupabaseStatusMsg('');
+                    }}
+                    placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+                    className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2.5 text-xs text-white placeholder:text-slate-600 focus:outline-none focus:border-emerald-500 font-mono pr-20"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      saveSupabaseAnonKey(supabaseKey);
+                      setSupabaseStatusMsg('✅ Anon Key saved to localStorage!');
+                    }}
+                    className="absolute right-1.5 top-1.5 bottom-1.5 px-3 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-bold transition flex items-center gap-1"
+                  >
+                    <Key className="w-3 h-3" />
+                    <span>Save</span>
+                  </button>
+                </div>
+                <p className="text-[10px] text-slate-400 mt-1">
+                  Key is saved securely in your browser's <strong className="text-slate-300">localStorage</strong> and used for sync.
+                </p>
+              </div>
+
+              {/* Status Message */}
+              {supabaseStatusMsg && (
+                <div className="p-3 bg-slate-950 border border-slate-800 rounded-xl text-xs text-emerald-300 font-medium flex items-center gap-2">
+                  <CheckCircle className="w-4 h-4 text-emerald-400 shrink-0" />
+                  <span>{supabaseStatusMsg}</span>
+                </div>
+              )}
+
+              {/* Sync Info */}
+              <div className="bg-slate-950/50 border border-slate-800/80 rounded-xl p-3 text-xs space-y-1">
+                <div className="flex items-center justify-between text-slate-400">
+                  <span>Connection Status:</span>
+                  <span className={`font-bold flex items-center gap-1.5 ${supabaseKey.trim().length > 10 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                    <span className={`w-2 h-2 rounded-full ${supabaseKey.trim().length > 10 ? 'bg-emerald-400' : 'bg-rose-500'}`} />
+                    {supabaseKey.trim().length > 10 ? 'Ready / Key Configured' : 'Anon Key Required'}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between text-slate-400">
+                  <span>Last Cloud Sync:</span>
+                  <span className="text-amber-400 font-semibold">{lastSyncTime || 'Never'}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="bg-slate-800/50 px-5 py-3 border-t border-slate-700/80 flex items-center justify-between gap-3">
+              <span className="text-[11px] text-slate-400">
+                Pushes products, customers, sales & accounts.
+              </span>
+              <button
+                type="button"
+                disabled={isSupabaseSyncing || !supabaseKey.trim()}
+                onClick={async () => {
+                  saveSupabaseAnonKey(supabaseKey);
+                  setIsSupabaseSyncing(true);
+                  setSupabaseStatusMsg('Syncing all data to Supabase Cloud...');
+                  try {
+                    const res = await syncToSupabase();
+                    if (res.success) {
+                      setLastSyncTime(res.timestamp);
+                      setSupabaseStatusMsg(`🎉 ${res.message}`);
+                    } else {
+                      setSupabaseStatusMsg(`⚠️ ${res.message}`);
+                    }
+                  } catch (err: any) {
+                    setSupabaseStatusMsg(`❌ Error: ${err?.message}`);
+                  } finally {
+                    setIsSupabaseSyncing(false);
+                  }
+                }}
+                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold text-white transition ${
+                  isSupabaseSyncing || !supabaseKey.trim()
+                    ? 'bg-slate-700 text-slate-400 cursor-not-allowed'
+                    : 'bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 shadow-md'
+                }`}
+              >
+                <RotateCw className={`w-3.5 h-3.5 ${isSupabaseSyncing ? 'animate-spin' : ''}`} />
+                <span>{isSupabaseSyncing ? 'Syncing...' : 'Sync Now to Supabase'}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </header>
   );
 };
